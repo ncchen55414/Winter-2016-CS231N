@@ -135,7 +135,28 @@ class CaptioningRNN(object):
     # defined above to store loss and gradients; grads[k] should give the      #
     # gradients for self.params[k].                                            #
     ############################################################################
-    pass
+
+    #(1)
+    initial_h = features.dot(W_proj) + b_proj
+
+    #(2)
+    embed_word, embed_word_cache = word_embedding_forward(captions_in, W_embed) 
+   
+    #(3)
+    h, h_cache = rnn_forward(embed_word, initial_h, Wx, Wh, b)
+
+    #(4)
+    affine_forward_out, affine_forward_cache = temporal_affine_forward(h, W_vocab, b_vocab)
+
+    #(5)
+    loss, dscore = temporal_softmax_loss(affine_forward_out, captions_out, mask, verbose=False)
+     
+    #backprop 
+    daffine_out, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dscore, affine_forward_cache)
+    dword_vector, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(daffine_out, h_cache)
+    grads['W_embed'] = word_embedding_backward(dword_vector, embed_word_cache)
+    grads['W_proj'] = features.T.dot(dh0) 
+    grads['b_proj'] = np.sum(dh0, axis=0)
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -197,7 +218,21 @@ class CaptioningRNN(object):
     # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
     # a loop.                                                                 #
     ###########################################################################
-    pass
+    
+    (N, D) = features.shape
+    prev_h = features.dot(W_proj) + b_proj
+
+    # The argument x in rnn_step_forward(x,_) should have dimension (N,D)
+    x = np.tile(W_embed[self._start],(N,1)) 
+    
+    for i in range(len(captions)):
+        next_h, _ = rnn_step_forward(x, prev_h, Wx, Wh, b)
+        prev_h = next_h
+        # The argument x in temporal_affine_forward(x,w,b) should have dimension (N,T,D). Here T=1
+        next_h = np.expand_dims(next_h, axis=1) 
+        score, _ = temporal_affine_forward(next_h, W_vocab, b_vocab)
+        captions[:,i] = list(np.argmax(score, axis = 2)) 
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
