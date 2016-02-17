@@ -228,20 +228,21 @@ class CaptioningRNN(object):
     prev_h = features.dot(W_proj) + b_proj
     prev_c = np.zeros(prev_h.shape)
 
-    # The argument x in rnn_step_forward(x,_) should have dimension (N,D)
-    x = np.tile(W_embed[self._start],(N,1)) 
-    
+    # self._start is the index of the word '<START>'
+    current_word_index = [1]*N
+
     for i in range(len(captions)):
+        x = W_embed[current_word_index]  # get word_vector from word_index
         if self.cell_type=='rnn':
             next_h, _ = rnn_step_forward(x, prev_h, Wx, Wh, b)
         elif self.cell_type =='lstm':
             next_h, next_c, _ = lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b)  
             prev_c = next_c  
         prev_h = next_h
-        # The argument x in temporal_affine_forward(x,w,b) should have dimension (N,T,D). Here T=1
         next_h = np.expand_dims(next_h, axis=1) 
         score, _ = temporal_affine_forward(next_h, W_vocab, b_vocab)
         captions[:,i] = list(np.argmax(score, axis = 2)) 
+        current_word_index = captions[:,i]
 
     ############################################################################
     #                             END OF YOUR CODE                             #
