@@ -143,8 +143,10 @@ class CaptioningRNN(object):
     embed_word, embed_word_cache = word_embedding_forward(captions_in, W_embed) 
    
     #(3)
-    h, h_cache = rnn_forward(embed_word, initial_h, Wx, Wh, b)
-
+    if self.cell_type=='rnn':
+        h, h_cache = rnn_forward(embed_word, initial_h, Wx, Wh, b)
+    elif self.cell_type =='lstm':
+        h, h_cache = lstm_forward(embed_word, initial_h, Wx, Wh, b)
     #(4)
     affine_forward_out, affine_forward_cache = temporal_affine_forward(h, W_vocab, b_vocab)
 
@@ -153,7 +155,10 @@ class CaptioningRNN(object):
      
     #backprop 
     daffine_out, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dscore, affine_forward_cache)
-    dword_vector, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(daffine_out, h_cache)
+    if self.cell_type=='rnn':
+        dword_vector, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(daffine_out, h_cache)
+    elif self.cell_type=='lstm':
+        dword_vector, dh0, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(daffine_out, h_cache)
     grads['W_embed'] = word_embedding_backward(dword_vector, embed_word_cache)
     grads['W_proj'] = features.T.dot(dh0) 
     grads['b_proj'] = np.sum(dh0, axis=0)
@@ -221,12 +226,17 @@ class CaptioningRNN(object):
     
     (N, D) = features.shape
     prev_h = features.dot(W_proj) + b_proj
+    prev_c = np.zeros(prev_h.shape)
 
     # The argument x in rnn_step_forward(x,_) should have dimension (N,D)
     x = np.tile(W_embed[self._start],(N,1)) 
     
     for i in range(len(captions)):
-        next_h, _ = rnn_step_forward(x, prev_h, Wx, Wh, b)
+        if self.cell_type=='rnn':
+            next_h, _ = rnn_step_forward(x, prev_h, Wx, Wh, b)
+        elif self.cell_type =='lstm':
+            next_h, next_c, _ = lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b)  
+            prev_c = next_c  
         prev_h = next_h
         # The argument x in temporal_affine_forward(x,w,b) should have dimension (N,T,D). Here T=1
         next_h = np.expand_dims(next_h, axis=1) 
