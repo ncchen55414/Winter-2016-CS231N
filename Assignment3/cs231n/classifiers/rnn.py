@@ -229,7 +229,7 @@ class CaptioningRNN(object):
     prev_c = np.zeros(prev_h.shape)
 
     # self._start is the index of the word '<START>'
-    current_word_index = [1]*N
+    current_word_index = [self._start]*N
 
     for i in range(len(captions)):
         x = W_embed[current_word_index]  # get word_vector from word_index
