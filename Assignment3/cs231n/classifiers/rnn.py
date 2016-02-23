@@ -231,7 +231,7 @@ class CaptioningRNN(object):
     # self._start is the index of the word '<START>'
     current_word_index = [self._start]*N
 
-    for i in range(len(captions)):
+    for i in range(max_length):
         x = W_embed[current_word_index]  # get word_vector from word_index
         if self.cell_type=='rnn':
             next_h, _ = rnn_step_forward(x, prev_h, Wx, Wh, b)
